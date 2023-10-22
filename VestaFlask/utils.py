@@ -62,8 +62,8 @@ class Queries:
     @staticmethod
     def send_email(receiver_email, send_message, message_header):
         port = 465
-        password = "mpasfxtjvcixwllb"
-        sender_email = "mikeekh666@gmail.com"
+        password = "grcvnnwmcpdftfto"
+        sender_email = "Vestaatrading@gmail.com"
 
         message = MIMEMultipart("alternative")
         message["Subject"] = message_header
@@ -94,3 +94,9 @@ Subject: {message_header}
         upload_result = cloudinary.uploader.upload(picture)
         upload_result = upload_result["secure_url"]
         return upload_result
+
+    @staticmethod
+    def sf(val):
+        formatted_string = "{:.5f}".format(val)
+        float_value = float(formatted_string)
+        return float_value

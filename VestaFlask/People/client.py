@@ -17,7 +17,7 @@ def get():
     get_client = Queries.filter_one(Client, Client.id, cur_client)
 
     if get_client.deleted:
-        return jsonify({"message": "Account deleted!"}), 400
+        return jsonify({"message": "Account deactivated!"}), 400
 
     get_client = client_schema.dump(get_client)
 
@@ -98,7 +98,7 @@ def change_password():
     if not new_password.isalnum():
         return jsonify({"message": "Password must be alphanumeric!"}), 400
     if get_client.deleted:
-        return jsonify({"message": "Account deleted!"}), 400
+        return jsonify({"message": "Account deactivated!"}), 400
 
     new_password = generate_password_hash(new_password)
 
@@ -124,7 +124,7 @@ def delete_client():
     get_client = Queries.filter_one(Client, Client.id, cur_client)
 
     if get_client.deleted:
-        return jsonify({"message": "Account deleted!"}), 400
+        return jsonify({"message": "Account deactivated!"}), 400
     if get_client.acct_bal > 100:
         return jsonify({"message": f"You still have ${get_client.acct_bal}.00 in your account, withdraw before \
         deleting your account!"}), 400
@@ -138,6 +138,7 @@ def delete_client():
 
     db_session.add(new_notif)
     get_client.deleted = True
+    get_client.logged_in = False
     db_session.commit()
 
     return jsonify({"message": "Client deleted!"}), 200
@@ -148,9 +149,6 @@ def delete_client():
 def logout():
     cur_client = get_jwt_identity()
     get_client = Queries.filter_one(Client, Client.id, cur_client)
-
-    if get_client.deleted:
-        return jsonify({"message": "Account deleted!"}), 400
 
     get_client.logged_in = False
 
@@ -169,7 +167,7 @@ def get_username():
     get_client = Queries.filter_one(Client, Client.id, cur_client)
 
     if get_client.deleted:
-        return jsonify({"message": "Account deleted!"}), 400
+        return jsonify({"message": "Account deactivated!"}), 400
 
     return jsonify(get_client.first_name), 200
 
@@ -198,13 +196,17 @@ def activate_client(index):
         get_client.deleted = False
         new_notif = Notifications(message=f"Admin, {get_admin.first_name} {get_admin.last_name} activated client, \
         {get_client.first_name} {get_client.last_name}'s account.")
+
+        message_header = "Account Activated"
+        message = f"Hello {get_client.first_name}, your account has been reactivated!"
     else:
         get_client.deleted = True
+        get_client.logged_in = False
         new_notif = Notifications(message=f"Admin, {get_admin.first_name} {get_admin.last_name} deactivated client, \
         {get_client.first_name} {get_client.last_name}'s account.")
 
-    message_header = "Account Activated"
-    message = f"Hello {get_client.first_name}, your account has been reactivated!"
+        message_header = "Account Deactivated"
+        message = f"Hello {get_client.first_name}, your account has been deactivated!"
 
     Queries.send_email(get_client.email, message, message_header)
 
@@ -231,3 +233,17 @@ def search_all(index):
     get_client = client_schema.dump(get_client)
 
     return jsonify(get_client), 200
+
+
+@client.get('get/logged_in')
+@jwt_required()
+def get_logged_in():
+    cur_client = get_jwt_identity()
+    get_client = Queries.filter_one(Client, Client.id, cur_client)
+
+    if not get_client:
+        return jsonify({"message": "Invalid client!"}), 400
+    if get_client.deleted:
+        return jsonify({"message": "Account deleted!"}), 400
+
+    return jsonify(get_client.logged_in), 200

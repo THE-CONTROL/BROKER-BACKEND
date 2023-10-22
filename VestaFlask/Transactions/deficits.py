@@ -19,10 +19,14 @@ def create_deficit(index):
 
     if not get_client:
         return jsonify({"message": "Invalid client!"}), 400
-    if int(amount) <= 0:
+    if get_client.deleted:
+        return jsonify({"message": "This users account is deactivated!"}), 400
+    if amount == "":
+        return jsonify({"message": "Invalid input!"}), 400
+    if float(amount) <= 0.0:
         return jsonify({"message": "Amount cannot be less than or equal to 0!"}), 400
-    if int(bitcoin) <= 0:
-        return jsonify({"message": "Bitcoin cannot be less than or equal to 0!"}), 400
+
+    bitcoin = Queries.sf(bitcoin)
 
     username = f"{get_client.first_name} {get_client.last_name}"
 
@@ -31,9 +35,14 @@ def create_deficit(index):
         message=f"Admin, {get_admin.first_name} {get_admin.last_name} credited client, {get_client.first_name} \
                 {get_client.last_name} with deficit of ${amount}.00.")
 
-    get_client.acct_bal -= int(amount)
-    get_client.bit_bal -= int(bitcoin)
-    get_client.loss += int(amount)
+    get_client.acct_bal -= float(amount)
+    get_client.bit_bal -= float(bitcoin)
+    get_client.loss += float(amount)
+
+    admins = Queries.get_all(Admin)
+
+    for admin in admins:
+        admin.loss += float(amount)
 
     message_header = "You just had a loss"
     message = f"Your VestaTrading account was debited with an deficit of ${amount}.00({bitcoin} btc)"
@@ -44,7 +53,8 @@ def create_deficit(index):
     db_session.add(new_deficit)
     db_session.commit()
 
-    return jsonify({"message": "Deficit created!"}), 201
+    return jsonify({"heading": "Deficit was successfully created!", "content": f"You just debited \
+                        {get_client.first_name} {get_client.last_name} with ${amount}({bitcoin}btc)"}), 201
 
 
 @deficit.get('get/<page_size>/<page>')

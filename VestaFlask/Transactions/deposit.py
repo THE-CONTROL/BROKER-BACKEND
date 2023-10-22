@@ -19,23 +19,27 @@ def create_deposit():
 
     if not get_client:
         return jsonify({"message": "Invalid client!"}), 400
-    if int(amount) <= 0:
+    if get_client.deleted:
+        return jsonify({"message": "Account deactivated!"}), 400
+    if amount == "":
+        return jsonify({"message": "Invalid input!"}), 400
+    if float(amount) <= 0.0:
         return jsonify({"message": "Amount cannot be less than or equal to 0!"}), 400
-    if int(bitcoin) <= 0:
-        return jsonify({"message": "Bitcoin cannot be less than or equal to 0!"}), 400
     if get_client.investment_plan == "Bronze":
-        if get_client.tot_in + int(amount) < 500:
+        if get_client.tot_in + float(amount) < 500:
             return jsonify({"message": "Amount too low for your plan!"}), 400
-        elif get_client.tot_in + int(amount) >= 1500:
+        elif get_client.tot_in + float(amount) >= 1500:
             return jsonify({"message": "Amount too high for your plan, try migrating to another plan!"}), 400
     if get_client.investment_plan == "Silver":
-        if get_client.tot_in + int(amount) < 1500:
+        if get_client.tot_in + float(amount) < 1500:
             return jsonify({"message": "Amount too low for your plan, try migrating to another plan!"}), 400
-        elif get_client.tot_in + int(amount) >= 2500:
+        elif get_client.tot_in + float(amount) >= 2500:
             return jsonify({"message": "Amount too high for your plan, try migrating to another plan!"}), 400
     if get_client.investment_plan == "Gold":
-        if get_client.tot_in + int(amount) < 2500:
+        if get_client.tot_in + float(amount) < 2500:
             return jsonify({"message": "Amount too low for your plan, try migrating to another plan!"}), 400
+
+    bitcoin = Queries.sf(bitcoin)
 
     username = f"{get_client.first_name} {get_client.last_name}"
 
@@ -52,7 +56,9 @@ def create_deposit():
     db_session.add(new_deposit)
     db_session.commit()
 
-    return jsonify({"message": "Deposit created!"}), 201
+    return jsonify({"heading": "Your deposit request was successful!", "content": f"Your deposit request of \
+                    ${amount}({bitcoin}btc) is pending.  Please check your email regularly to see if the deposit \
+                    has been approved. Also, upload proof of payment to make approving your request faster."}), 201
 
 
 @deposit.get('get/<page_size>/<page>')
@@ -96,6 +102,8 @@ def deposit_proof(index):
 
     if not get_client:
         return jsonify({"message": "Invalid client!"}), 400
+    if get_client.deleted:
+        return jsonify({"message": "Account deactivated!"}), 400
     if not proof_deposit:
         return jsonify({"message": "Invalid transaction id!"}), 400
     if get_client.id != proof_deposit.client_id:
@@ -122,7 +130,8 @@ def deposit_proof(index):
 
     db_session.commit()
 
-    return jsonify({"message": "Proof added!"}), 200
+    return jsonify({"heading": "Proof of payment uploaded!", "content": f"Your proof of payment for deposit {index}\
+    has been uploaded. Please check your email regularly to see if the deposit has been approved."}), 200
 
 
 @deposit.get('get/all/<page_size>/<page>')
@@ -200,25 +209,25 @@ def approve(index):
 
     if get_deposit.status:
         get_deposit.status = False
-        get_client.acct_bal -= int(get_deposit.amount)
-        get_client.bit_bal -= int(get_deposit.bitcoin)
-        get_client.tot_in -= int(get_deposit.amount)
+        get_client.acct_bal -= float(get_deposit.amount)
+        get_client.bit_bal -= float(get_deposit.bitcoin)
+        get_client.tot_in -= float(get_deposit.amount)
 
         for admin in admins:
-            admin.acct_bal -= int(get_deposit.amount)
-            admin.bit_bal -= int(get_deposit.bitcoin)
-            admin.tot_in -= int(get_deposit.amount)
+            admin.acct_bal -= float(get_deposit.amount)
+            admin.bit_bal -= float(get_deposit.bitcoin)
+            admin.tot_in -= float(get_deposit.amount)
 
     else:
         get_deposit.status = True
-        get_client.acct_bal += int(get_deposit.amount)
-        get_client.bit_bal += int(get_deposit.bitcoin)
-        get_client.tot_in += int(get_deposit.amount)
+        get_client.acct_bal += float(get_deposit.amount)
+        get_client.bit_bal += float(get_deposit.bitcoin)
+        get_client.tot_in += float(get_deposit.amount)
 
         for admin in admins:
-            admin.acct_bal += int(get_deposit.amount)
-            admin.bit_bal += int(get_deposit.bitcoin)
-            admin.tot_in += int(get_deposit.amount)
+            admin.acct_bal += float(get_deposit.amount)
+            admin.bit_bal += float(get_deposit.bitcoin)
+            admin.tot_in += float(get_deposit.amount)
 
     new_notif = Notifications(
         message=f"Admin, {get_admin.first_name} {get_admin.last_name} approved deposit - {index}.")

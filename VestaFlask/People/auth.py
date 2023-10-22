@@ -58,7 +58,11 @@ def client_register():
     new_notif = Notifications(message=f"{first_name} {last_name} joined as a client.")
 
     message_header = "Welcome to Vesta Trading"
-    message = f"Hello {first_name}, we are so glad to have you with us and we hope that we can serve you well!"
+    message = f"""Hello {first_name}, welcome to Vesta Trading where we make earning in crypto currency really easy. We 
+are transparent, reliable and trustworthy. Our plans are affordable for everyone and the returns are the best you would 
+find in any reliable website.
+    
+    We are so glad to have you with us and we hope that we can serve you well!"""
 
     Queries.send_email(email, message, message_header)
 
@@ -66,7 +70,9 @@ def client_register():
     db_session.add(new_client)
     db_session.commit()
 
-    return jsonify({"message": "Client created!"}), 201
+    return jsonify({"heading": f"Hello {first_name}! Welcome to VestaTrading",
+                    "content": "We hope you find what you’re looking for and that you enjoy your stay. \
+                    Login to continue."}), 201
 
 
 @auth.post('client/login')
@@ -81,20 +87,23 @@ def client_login():
     if not check_password_hash(login_client.password, password):
         return jsonify({"message": "Invalid login details!"}), 400
     if login_client.deleted:
-        return jsonify({"message": "Invalid login details!"}), 400
+        return jsonify({"message": "Account deactivated!"}), 400
 
     access_token = create_access_token(identity=login_client.id)
     refresh_token = create_refresh_token(identity=login_client.id)
 
+    token = {"access_token": access_token.decode('utf-8'), "refresh_token": refresh_token.decode('utf-8')}
+
     login_client.logged_in = True
 
-    new_notif = Notifications(message=f"{login_client.first_name} {login_client.last_name} logged as a client.")
+    new_notif = Notifications(message=f"{login_client.first_name} {login_client.last_name} logged in as a client.")
 
     db_session.add(new_notif)
     db_session.commit()
 
-    return jsonify({"message": "Login successful!",
-                    "access_token": access_token, "refresh_token": refresh_token}), 200
+    return jsonify({"heading": f"Welcome back, {login_client.first_name}!",
+                    "content": "It's nice to see you again. Have a great day!",
+                    "token": token}), 200
 
 
 @auth.post('admin/register')
@@ -127,12 +136,12 @@ def admin_register():
 
     password = generate_password_hash(password)
 
-    acct_bal = 0
-    bit_bal = 0
-    tot_in = 0
-    tot_out = 0
-    profit = 0
-    loss = 0
+    acct_bal = 0.0
+    bit_bal = 0.0
+    tot_in = 0.0
+    tot_out = 0.0
+    profit = 0.0
+    loss = 0.0
 
     clients = Queries.get_all(Client)
 
@@ -157,7 +166,9 @@ def admin_register():
     db_session.add(new_admin)
     db_session.commit()
 
-    return jsonify({"message": "Admin created!"}), 201
+    return jsonify({"heading": f"Hello Admin {first_name}! Welcome to VestaTrading",
+                    "content": f"We hope you find what you’re looking for and that you enjoy your stay. \
+                    Login to continue."}), 201
 
 
 @auth.post('admin/login')
@@ -175,15 +186,18 @@ def admin_login():
     access_token = create_access_token(identity=login_admin.id)
     refresh_token = create_refresh_token(identity=login_admin.id)
 
+    token = {"access_token": access_token.decode('utf-8'), "refresh_token": refresh_token.decode('utf-8')}
+
     login_admin.logged_in = True
 
-    new_notif = Notifications(message=f"{login_admin.first_name} {login_admin.last_name} logged as an admin.")
+    new_notif = Notifications(message=f"{login_admin.first_name} {login_admin.last_name} logged in as an admin.")
 
     db_session.add(new_notif)
     db_session.commit()
 
-    return jsonify({"message": "Login successful!",
-                    "access_token": access_token, "refresh_token": refresh_token}), 200
+    return jsonify({"heading": f"Welcome back, Admin {login_admin.first_name}!",
+                    "content": "It's nice to see you again. Have a great day!",
+                    "token": token}), 200
 
 
 @auth.post("/refresh")
@@ -191,7 +205,7 @@ def admin_login():
 def refresh():
     identity = get_jwt_identity()
     access_token = create_access_token(identity=identity)
-    return jsonify({"access_token": access_token}), 200
+    return jsonify({"access_token": access_token.decode("utf-8")}), 200
 
 
 @auth.post('admin/forgot')
@@ -270,6 +284,8 @@ def client_forgot():
 
     if not forgot_client:
         return jsonify({"message": "Invalid email address!"}), 400
+    if forgot_client.deleted:
+        return jsonify({"message": "Account deactivated!"}), 400
 
     alphabet = string.ascii_letters + string.digits
     reset_code = ''.join(secrets.choice(alphabet) for _ in range(10))

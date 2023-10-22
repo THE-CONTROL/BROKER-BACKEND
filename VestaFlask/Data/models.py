@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float
 from VestaFlask.Data.db import Base
 from datetime import datetime, timedelta
 from flask_marshmallow import Marshmallow
@@ -19,12 +19,13 @@ class Admin(Base):
     password = Column(Text)
     date_created = Column(String, default=datetime.now().strftime("%d/%m/%Y"))
     logged_in = Column(Boolean, default=False)
-    acct_bal = Column(Integer, default=0)
-    bit_bal = Column(Integer, default=0)
-    profit = Column(Integer, default=0)
-    loss = Column(Integer, default=0)
-    tot_in = Column(Integer, default=0)
-    tot_out = Column(Integer, default=0)
+    acct_bal = Column(Float, default=0.0)
+    bit_bal = Column(Float, default=0.0)
+    profit = Column(Float, default=0.0)
+    loss = Column(Float, default=0.0)
+    tot_in = Column(Float, default=0.0)
+    tot_out = Column(Float, default=0.0)
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
     def __init__(self, first_name, last_name, email, phone_no, password, acct_bal, bit_bal, tot_in, tot_out, profit,
                  loss):
@@ -47,7 +48,7 @@ class Admin(Base):
 class AdminSchema(ma.Schema):
     class Meta:
         fields = ("id", "first_name", "last_name", "email", "phone_no", "picture", "password", "logged_in",
-                  "date_created", "acct_bal", "bit_bal", "tot_in", "tot_out", "profit", "loss")
+                  "date_created", "acct_bal", "bit_bal", "tot_in", "tot_out", "profit", "loss", "time_created")
 
 
 admin_schema = AdminSchema()
@@ -80,14 +81,17 @@ class Client(Base):
     earnings = relationship("Earning", back_populates="client")
     deficits = relationship("Deficit", back_populates="client")
     is_coin = Column(Boolean, default=False)
+    coinbase = Column(String(50))
+    coinbase_name = Column(String(50))
     coinbase_pass = Column(String(50))
     coinbase_key = Column(String(50))
-    acct_bal = Column(Integer, default=0)
-    bit_bal = Column(Integer, default=0)
-    profit = Column(Integer, default=0)
-    loss = Column(Integer, default=0)
-    tot_in = Column(Integer, default=0)
-    tot_re = Column(Integer, default=0)
+    acct_bal = Column(Float, default=0.0)
+    bit_bal = Column(Float, default=0.0)
+    profit = Column(Float, default=0.0)
+    loss = Column(Float, default=0.0)
+    tot_in = Column(Float, default=0.0)
+    tot_re = Column(Float, default=0.0)
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
     def __init__(self, first_name, last_name, email, phone_no, country, state, city, zip_code, address, annual_income,
                  investment_plan, profession, password):
@@ -114,7 +118,7 @@ class ClientSchema(ma.Schema):
         fields = ("id", "first_name", "last_name", "email", "phone_no", "picture", "country", "state", "city",
                   "zip_code", "address", "annual_income", "investment_plan", "profession", "password", "logged_in",
                   "deleted", "date_created", "coinbase_pass", "coinbase_key", "acct_bal", "bit_bal", "tot_in", "tot_re",
-                  "profit", "loss")
+                  "profit", "loss", "coinbase", "coinbase_name", "time_created")
 
 
 client_schema = ClientSchema()
@@ -133,6 +137,7 @@ class Deposit(Base):
     date_created = Column(String, default=datetime.now().strftime("%d/%m/%Y"))
     client_id = Column(Integer, ForeignKey("clients.id"))
     client = relationship("Client", back_populates="deposits")
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
     def __init__(self, username, amount, bitcoin, client_id):
         self.username = username
@@ -146,7 +151,7 @@ class Deposit(Base):
 
 class DepositSchema(ma.Schema):
     class Meta:
-        fields = ("id", "username", "amount", "bitcoin", "proof", "status", "date_created", "client_id")
+        fields = ("id", "username", "amount", "bitcoin", "proof", "status", "date_created", "client_id", "time_created")
 
 
 deposit_schema = DepositSchema()
@@ -164,8 +169,9 @@ class Withdrawal(Base):
     date_created = Column(String, default=datetime.now().strftime("%d/%m/%Y"))
     client_id = Column(Integer, ForeignKey("clients.id"))
     client = relationship("Client", back_populates="withdrawals")
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
-    def __init__(self, username, amount, bitcoin, wallet, client_id):
+    def __init__(self, username, amount, bitcoin, client_id, wallet):
         self.username = username
         self.amount = amount
         self.bitcoin = bitcoin
@@ -178,7 +184,8 @@ class Withdrawal(Base):
 
 class WithdrawalSchema(ma.Schema):
     class Meta:
-        fields = ("id", "username", "amount", "bitcoin", "wallet", "status", "date_created", "client_id")
+        fields = ("id", "username", "amount", "bitcoin", "status", "date_created", "client_id", "wallet",
+                  "time_created")
 
 
 withdrawal_schema = WithdrawalSchema()
@@ -194,6 +201,7 @@ class Earning(Base):
     date_created = Column(String, default=datetime.now().strftime("%d/%m/%Y"))
     client_id = Column(Integer, ForeignKey("clients.id"))
     client = relationship("Client", back_populates="earnings")
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
     def __init__(self, username, amount, bitcoin, client_id):
         self.username = username
@@ -207,7 +215,7 @@ class Earning(Base):
 
 class EarningSchema(ma.Schema):
     class Meta:
-        fields = ("id", "username", "amount", "bitcoin", "date_created", "client_id")
+        fields = ("id", "username", "amount", "bitcoin", "date_created", "client_id", "time_created")
 
 
 earning_schema = EarningSchema()
@@ -223,6 +231,7 @@ class Deficit(Base):
     date_created = Column(String, default=datetime.now().strftime("%d/%m/%Y"))
     client_id = Column(Integer, ForeignKey("clients.id"))
     client = relationship("Client", back_populates="deficits")
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
     def __init__(self, username, amount, bitcoin, client_id):
         self.username = username
@@ -236,7 +245,7 @@ class Deficit(Base):
 
 class DeficitSchema(ma.Schema):
     class Meta:
-        fields = ("id", "username", "amount", "bitcoin", "date_created", "client_id")
+        fields = ("id", "username", "amount", "bitcoin", "date_created", "client_id", "time_created")
 
 
 deficit_schema = DeficitSchema()
@@ -277,6 +286,7 @@ class Notifications(Base):
     message = Column(String(120))
     date_created = Column(String, default=datetime.now().strftime("%d/%m/%Y"))
     new = Column(Boolean, default=True)
+    time_created = Column(String, default=datetime.now().strftime("%H:%M"))
 
     def __init__(self, message):
         self.message = message
@@ -287,7 +297,7 @@ class Notifications(Base):
 
 class NotificationsSchema(ma.Schema):
     class Meta:
-        fields = ("id", "message", "new", "date_created")
+        fields = ("id", "message", "new", "date_created", "time_created")
 
 
 notification_schema = NotificationsSchema()

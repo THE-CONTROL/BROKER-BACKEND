@@ -181,3 +181,15 @@ def get_username():
     get_admin = Queries.filter_one(Admin, Admin.id, cur_admin)
 
     return jsonify(get_admin.first_name), 200
+
+
+@admin.get('get/logged_in')
+@jwt_required()
+def get_logged_in():
+    cur_admin = get_jwt_identity()
+    get_admin = Queries.filter_one(Admin, Admin.id, cur_admin)
+
+    if not get_admin:
+        return jsonify({"message": "Invalid admin!"}), 400
+
+    return jsonify(get_admin.logged_in), 200

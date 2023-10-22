@@ -31,13 +31,8 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    from VestaFlask.Transactions import withdrawal
-    from VestaFlask.Transactions import earning
-    from VestaFlask.Transactions import deposit
-    from VestaFlask.Transactions import deficits
-    from VestaFlask.People import auth
-    from VestaFlask.Transactions import client
-    from VestaFlask.People import admin
+    from VestaFlask.Transactions import withdrawal, earning, deficits, deposit
+    from VestaFlask.People import client, admin, auth
 
     app.register_blueprint(auth.auth)
     app.register_blueprint(admin.admin)
